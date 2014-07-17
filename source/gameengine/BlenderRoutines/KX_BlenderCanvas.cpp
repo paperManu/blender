@@ -383,6 +383,8 @@ void KX_BlenderCanvas::FrontBufferToShmdata()
 
         if (m_shmdata_writer != NULL)
             shmdata_any_writer_push_data(m_shmdata_writer, (void*)dumprect, dumpsx * dumpsy * 4 * sizeof(char), 0, NULL, NULL);
+
+        MEM_freeN(dumprect);
 	}
 }
 #endif
