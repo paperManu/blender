@@ -25,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file KX_BlenderCanvas.h
+/** \file KX_BlenderCanvasFbo.h
  *  \ingroup blroutines
  */
 
-#ifndef __KX_BLENDERCANVAS_H__
-#define __KX_BLENDERCANVAS_H__
+#ifndef __KX_BLENDERCANVASFBO_H__
+#define __KX_BLENDERCANVASFBO_H__
 
 #ifdef WIN32
 #include <windows.h>
@@ -43,6 +43,10 @@
 #include "MEM_guardedalloc.h"
 #endif
 
+#ifdef WITH_SHMDATA
+#include <shmdata/any-data-writer.h>
+#endif
+
 struct ARegion;
 struct wmWindow;
 struct wmWindowManager;
@@ -52,7 +56,7 @@ struct wmWindowManager;
  * The connection from 3d rendercontext to 2d Blender surface embedding.
  */
 
-class KX_BlenderCanvas : public RAS_ICanvas
+class KX_BlenderCanvasFbo : public RAS_ICanvas
 {
 private:
 	/**
@@ -66,8 +70,8 @@ public:
 	 * 
 	 * \param area The Blender ARegion to run the game within.
 	 */
-	KX_BlenderCanvas(struct wmWindowManager *wm, struct wmWindow* win, RAS_Rect &rect, struct ARegion* ar);
-	~KX_BlenderCanvas();
+	KX_BlenderCanvasFbo(struct wmWindowManager *wm, struct wmWindow* win, RAS_Rect &rect, struct ARegion* ar);
+	~KX_BlenderCanvasFbo();
 
 		void 
 	Init(
@@ -82,9 +86,8 @@ public:
 		int interval
 	);
 
-		bool
+		int
 	GetSwapInterval(
-		int &intervalOut
 	);
 
 		void 
@@ -194,6 +197,13 @@ public:
 		const char* filename
 	);
 
+#ifdef WITH_SHMDATA
+        void
+    EnableShmdata(
+        const char* filename
+    );
+#endif
+	
 		bool 
 	BeginDraw(
 	);
@@ -211,9 +221,24 @@ private:
 	int			m_area_left;
 	int			m_area_top;
 
+    /** Framebuffer object related stuff */
+    GLuint m_fbo;
+    GLuint m_fbo_depth;
+    GLuint m_fbo_color;
+
+#ifdef WITH_SHMDATA
+    shmdata_any_writer_t *m_shmdata_writer;
+    char m_shmdata_filename[256];
+    int m_shmdata_writer_w, m_shmdata_writer_h;
+
+    void FrontBufferToShmdata();
+#endif
+
+    void InitializeFbo();
+
 #ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvas")
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvasFbo")
 #endif
 };
 
-#endif  /* __KX_BLENDERCANVAS_H__ */
+#endif  /* __KX_BLENDERCANVASFBO_H__ */

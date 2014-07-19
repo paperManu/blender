@@ -1121,22 +1121,6 @@ static PyObject *gPyMakeScreenshot(PyObject *, PyObject *args)
 	Py_RETURN_NONE;
 }
 
-#if WITH_SHMDATA
-static PyObject *gPyEnableShmdata(PyObject *, PyObject *args)
-{
-    char* filename;
-    if (!PyArg_ParseTuple(args,"s:enableShmdata",&filename))
-        return NULL;
-
-    if (gp_Canvas)
-    {
-        gp_Canvas->EnableShmdata(filename);
-    }
-
-    Py_RETURN_NONE;
-}
-#endif
-
 static PyObject *gPyEnableMotionBlur(PyObject *, PyObject *args)
 {
 	float motionblurvalue;
@@ -1489,10 +1473,6 @@ static struct PyMethodDef rasterizer_methods[] = {
 	 METH_VARARGS, "getWindowHeight doc"},
 	{"makeScreenshot",(PyCFunction)gPyMakeScreenshot,
 	 METH_VARARGS, "make Screenshot doc"},
-#ifdef WITH_SHMDATA
-    {"enableShmdata",(PyCFunction)gPyEnableShmdata,
-     METH_VARARGS, "enable Shmdata doc"},
-#endif
 	{"enableVisibility",(PyCFunction) gPyEnableVisibility,
 	 METH_VARARGS, "enableVisibility doc"},
 	{"showMouse",(PyCFunction) gPyShowMouse,

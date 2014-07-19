@@ -42,7 +42,7 @@
 
 #include "glew-mx.h"
 
-#include "KX_BlenderCanvas.h"
+#include "KX_BlenderCanvasFbo.h"
 #include "KX_BlenderKeyboardDevice.h"
 #include "KX_BlenderMouseDevice.h"
 #include "KX_BlenderSystem.h"
@@ -290,7 +290,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		if (animation_record) usefixed= false; /* override since you don't want to run full-speed for sim recording */
 
 		// create the canvas and rasterizer
-		RAS_ICanvas* canvas = new KX_BlenderCanvas(wm, win, area_rect, ar);
+		RAS_ICanvas* canvas = new KX_BlenderCanvasFbo(wm, win, area_rect, ar);
 		
 		// default mouse state set on render panel
 		if (mouse_state)

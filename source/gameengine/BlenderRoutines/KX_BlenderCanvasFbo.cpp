@@ -25,15 +25,15 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file gameengine/BlenderRoutines/KX_BlenderCanvas.cpp
+/** \file gameengine/BlenderRoutines/KX_BlenderCanvasFbo.cpp
  *  \ingroup blroutines
  */
 
-#include "glew-mx.h"
+#include <GL/glew.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "KX_BlenderCanvas.h"
+#include "KX_BlenderCanvasFbo.h"
 
 #include "DNA_image_types.h"
 #include "DNA_scene_types.h"
@@ -59,7 +59,7 @@ extern "C" {
 #include "wm_window.h"
 }
 
-KX_BlenderCanvas::KX_BlenderCanvas(wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, struct ARegion *ar) :
+KX_BlenderCanvasFbo::KX_BlenderCanvasFbo(wmWindowManager *wm, wmWindow *win, RAS_Rect &rect, struct ARegion *ar) :
 m_wm(wm),
 m_win(win),
 m_frame_rect(rect)
@@ -71,85 +71,158 @@ m_frame_rect(rect)
 	m_area_top = ar->winrct.ymax;
 
 	glGetIntegerv(GL_VIEWPORT, (GLint *)m_viewport);
+
+    InitializeFbo();
+
+#ifdef WITH_SHMDATA
+    m_shmdata_writer = NULL;
+    sprintf(m_shmdata_filename, "");
+#endif
 }
 
-KX_BlenderCanvas::~KX_BlenderCanvas()
+KX_BlenderCanvasFbo::~KX_BlenderCanvasFbo()
 {
+#ifdef WITH_SHMDATA
+    if (m_shmdata_writer != NULL)
+        shmdata_any_writer_close(m_shmdata_writer);
+#endif
 }
 
-void KX_BlenderCanvas::Init()
+void KX_BlenderCanvasFbo::InitializeFbo()
+{
+    glGenFramebuffers(1, &m_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+
+    glGenTextures(1, &m_fbo_depth);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_fbo_depth);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_STENCIL, m_frame_rect.GetRight(), m_frame_rect.GetTop(), 0, GL_DEPTH_STENCIL, GL_FLOAT, NULL);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, m_fbo_depth, 0);
+
+    glGenTextures(1, &m_fbo_color);
+    glBindTexture(GL_TEXTURE_2D, m_fbo_color);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_frame_rect.GetRight(), m_frame_rect.GetTop(), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_fbo_color, 0);
+
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
+    {
+        printf("Error initializing FBO\n");
+        glDeleteFramebuffers(1, &m_fbo);
+        glDeleteTextures(1, &m_fbo_depth);
+        glDeleteTextures(1, &m_fbo_color);
+    }
+    else
+        printf("FBO correctly initialized\n");
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void KX_BlenderCanvasFbo::Init()
 {
 	glDepthFunc(GL_LEQUAL);
 }
 
 
-void KX_BlenderCanvas::SwapBuffers()
+void KX_BlenderCanvasFbo::SwapBuffers()
 {
 	wm_window_swap_buffers(m_win);
+
+#ifdef WITH_SHMDATA
+    FrontBufferToShmdata();
+#endif
 }
 
-void KX_BlenderCanvas::SetSwapInterval(int interval)
+void KX_BlenderCanvasFbo::SetSwapInterval(int interval)
 {
 	wm_window_set_swap_interval(m_win, interval);
 }
 
-bool KX_BlenderCanvas::GetSwapInterval(int &intervalOut)
+int	KX_BlenderCanvasFbo::GetSwapInterval()
 {
-	return wm_window_get_swap_interval(m_win, &intervalOut);
+	return wm_window_get_swap_interval(m_win);
 }
 
-void KX_BlenderCanvas::ResizeWindow(int width, int height)
-{
-	// Not implemented for the embedded player
-}
-
-void KX_BlenderCanvas::SetFullScreen(bool enable)
+void KX_BlenderCanvasFbo::ResizeWindow(int width, int height)
 {
 	// Not implemented for the embedded player
 }
 
-bool KX_BlenderCanvas::GetFullScreen()
+void KX_BlenderCanvasFbo::SetFullScreen(bool enable)
+{
+	// Not implemented for the embedded player
+}
+
+bool KX_BlenderCanvasFbo::GetFullScreen()
 {
 	// Not implemented for the embedded player
 	return false;
 }
 
-bool KX_BlenderCanvas::BeginDraw()
+bool KX_BlenderCanvasFbo::BeginDraw()
 {
 	// in case of multi-window we need to ensure we are drawing to the correct
 	// window always, because it may change in window event handling
 	wm_window_make_drawable(m_wm, m_win);
+
+    GLenum fboBuffers[1] = {
+        GL_COLOR_ATTACHMENT0
+    };
+
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
+    glDrawBuffers(1, fboBuffers);
+
 	return true;
 }
 
 
-void KX_BlenderCanvas::EndDraw()
+void KX_BlenderCanvasFbo::EndDraw()
 {
-	// nothing needs to be done here
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+    // Now that the rendering has been done to the FBO, we can show it in the window
+    glDrawBuffer(GL_BACK);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
+    glBlitFramebuffer(m_frame_rect.GetLeft(), m_frame_rect.GetBottom(), m_frame_rect.GetRight(), m_frame_rect.GetTop(),
+                      m_frame_rect.GetLeft(), m_frame_rect.GetBottom(), m_frame_rect.GetRight(), m_frame_rect.GetTop(),
+                      GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_LINEAR);
 }
 
-void KX_BlenderCanvas::BeginFrame()
+void KX_BlenderCanvasFbo::BeginFrame()
 {
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 }
 
 
-void KX_BlenderCanvas::EndFrame()
+void KX_BlenderCanvasFbo::EndFrame()
 {
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 	glDisable(GL_FOG);
 }
 
 
 
-void KX_BlenderCanvas::ClearColor(float r,float g,float b,float a)
+void KX_BlenderCanvasFbo::ClearColor(float r,float g,float b,float a)
 {
 	glClearColor(r,g,b,a);
 }
 
 
 
-void KX_BlenderCanvas::ClearBuffer(int type)
+void KX_BlenderCanvasFbo::ClearBuffer(int type)
 {
 	int ogltype = 0;
 
@@ -161,49 +234,49 @@ void KX_BlenderCanvas::ClearBuffer(int type)
 	glClear(ogltype);
 }
 
-int KX_BlenderCanvas::GetWidth(
+int KX_BlenderCanvasFbo::GetWidth(
 ) const {
 	return m_frame_rect.GetWidth();
 }
 
-int KX_BlenderCanvas::GetHeight(
+int KX_BlenderCanvasFbo::GetHeight(
 ) const {
 	return m_frame_rect.GetHeight();
 }
 
-int KX_BlenderCanvas::GetMouseX(int x)
+int KX_BlenderCanvasFbo::GetMouseX(int x)
 {
 	int left = GetWindowArea().GetLeft();
 	return x - (left - m_area_left);
 }
 
-int KX_BlenderCanvas::GetMouseY(int y)
+int KX_BlenderCanvasFbo::GetMouseY(int y)
 {
 	int top = GetWindowArea().GetTop();
 	return y - (m_area_top - top);
 }
 
-float KX_BlenderCanvas::GetMouseNormalizedX(int x)
+float KX_BlenderCanvasFbo::GetMouseNormalizedX(int x)
 {
 	int can_x = GetMouseX(x);
 	return float(can_x)/this->GetWidth();
 }
 
-float KX_BlenderCanvas::GetMouseNormalizedY(int y)
+float KX_BlenderCanvasFbo::GetMouseNormalizedY(int y)
 {
 	int can_y = GetMouseY(y);
 	return float(can_y)/this->GetHeight();
 }
 
 RAS_Rect &
-KX_BlenderCanvas::
+KX_BlenderCanvasFbo::
 GetWindowArea(
 ) {
 	return m_area_rect;
 }
 
 	void
-KX_BlenderCanvas::
+KX_BlenderCanvasFbo::
 SetViewPort(
 	int x1, int y1,
 	int x2, int y2
@@ -233,7 +306,7 @@ SetViewPort(
 }
 
 	void
-KX_BlenderCanvas::
+KX_BlenderCanvasFbo::
 UpdateViewPort(
 	int x1, int y1,
 	int x2, int y2
@@ -245,7 +318,7 @@ UpdateViewPort(
 }
 
 	const int*
-KX_BlenderCanvas::
+KX_BlenderCanvasFbo::
 GetViewPort() {
 #ifdef DEBUG
 	// If we're in a debug build, we might as well make sure our values don't differ
@@ -261,7 +334,7 @@ GetViewPort() {
 	return m_viewport;
 }
 
-void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
+void KX_BlenderCanvasFbo::SetMouseState(RAS_MouseState mousestate)
 {
 	m_mousestate = mousestate;
 
@@ -291,7 +364,7 @@ void KX_BlenderCanvas::SetMouseState(RAS_MouseState mousestate)
 
 
 //	(0,0) is top left, (width,height) is bottom right
-void KX_BlenderCanvas::SetMousePosition(int x,int y)
+void KX_BlenderCanvasFbo::SetMousePosition(int x,int y)
 {
 	int winX = m_frame_rect.GetLeft();
 	int winY = m_frame_rect.GetBottom();
@@ -324,7 +397,59 @@ static unsigned int *screenshot(ScrArea *curarea, int *dumpsx, int *dumpsy)
 	return dumprect;
 }
 
-void KX_BlenderCanvas::MakeScreenShot(const char *filename)
+#ifdef WITH_SHMDATA
+void KX_BlenderCanvasFbo::FrontBufferToShmdata()
+{
+    if (strcmp(m_shmdata_filename, "") == 0)
+        return;
+
+	ScrArea area_dummy= {0};
+	unsigned int *dumprect;
+	int dumpsx, dumpsy;
+
+	area_dummy.totrct.xmin = m_frame_rect.GetLeft();
+	area_dummy.totrct.xmax = m_frame_rect.GetRight();
+	area_dummy.totrct.ymin = m_frame_rect.GetBottom();
+	area_dummy.totrct.ymax = m_frame_rect.GetTop();
+
+	dumprect = screenshot(&area_dummy, &dumpsx, &dumpsy);
+
+	if (dumprect) {
+        if (m_shmdata_writer != NULL && (dumpsx != m_shmdata_writer_w || dumpsy != m_shmdata_writer_h))
+        {
+            shmdata_any_writer_close(m_shmdata_writer);
+            m_shmdata_writer = NULL;
+        }
+
+        if (m_shmdata_writer == NULL)
+        {
+            m_shmdata_writer = shmdata_any_writer_init();
+
+            char buffer[256] = "";
+            sprintf(buffer, "video/x-raw-rgb,bpp=%i,endianness=4321,depth=%i,red_mask=-16777216,green_mask=16711680,blue_mask=65280,width=%i,height=%i,framerate=60/1", 32, 32, dumpsx, dumpsy);
+            shmdata_any_writer_set_data_type(m_shmdata_writer, buffer);
+
+            m_shmdata_writer_w = dumpsx;
+            m_shmdata_writer_h = dumpsy;
+
+            if (!shmdata_any_writer_set_path(m_shmdata_writer, m_shmdata_filename))
+            {
+                shmdata_any_writer_close(m_shmdata_writer);
+                m_shmdata_writer = NULL;
+            }
+            else
+                shmdata_any_writer_start(m_shmdata_writer);
+        }
+
+        if (m_shmdata_writer != NULL)
+            shmdata_any_writer_push_data(m_shmdata_writer, (void*)dumprect, dumpsx * dumpsy * 4 * sizeof(char), 0, NULL, NULL);
+
+        MEM_freeN(dumprect);
+	}
+}
+#endif
+
+void KX_BlenderCanvasFbo::MakeScreenShot(const char *filename)
 {
 	ScrArea area_dummy= {0};
 	bScreen *screen = m_win->screen;
@@ -365,3 +490,11 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 		MEM_freeN(dumprect);
 	}
 }
+
+#ifdef WITH_SHMDATA
+void KX_BlenderCanvasFbo::EnableShmdata(const char *filename)
+{
+    if (filename != NULL)
+        sprintf(m_shmdata_filename, "%s", filename);
+}
+#endif
