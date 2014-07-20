@@ -72,19 +72,28 @@ m_frame_rect(rect)
 
 	glGetIntegerv(GL_VIEWPORT, (GLint *)m_viewport);
 
-    InitializeFbo();
-
 #ifdef WITH_SHMDATA
     m_shmdata_writer = NULL;
     sprintf(m_shmdata_filename, "");
+    m_shmdata_buffer = NULL;
 #endif
+
+    InitializeFbo();
 }
 
 KX_BlenderCanvasFbo::~KX_BlenderCanvasFbo()
 {
+    glDeleteFramebuffers(1, &m_fbo);
+    glDeleteTextures(1, &m_fbo_depth);
+    glDeleteTextures(1, &m_fbo_color);
+
 #ifdef WITH_SHMDATA
     if (m_shmdata_writer != NULL)
         shmdata_any_writer_close(m_shmdata_writer);
+    if (m_shmdata_buffer != NULL)
+        MEM_freeN(m_shmdata_buffer);
+
+    glDeleteBuffers(2, m_pbos);
 #endif
 }
 
@@ -101,7 +110,7 @@ void KX_BlenderCanvasFbo::InitializeFbo()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_STENCIL, m_frame_rect.GetRight(), m_frame_rect.GetTop(), 0, GL_DEPTH_STENCIL, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_STENCIL, m_frame_rect.GetRight(), m_frame_rect.GetTop(), 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
     glBindTexture(GL_TEXTURE_2D, 0);
     glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, m_fbo_depth, 0);
 
@@ -128,6 +137,18 @@ void KX_BlenderCanvasFbo::InitializeFbo()
         printf("FBO correctly initialized\n");
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+#ifdef WITH_SHMDATA
+    glGenBuffers(2, m_pbos);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[0]);
+    glBufferData(GL_PIXEL_PACK_BUFFER, m_frame_rect.GetWidth() * m_frame_rect.GetHeight() * 4, 0, GL_STREAM_READ);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[1]);
+    glBufferData(GL_PIXEL_PACK_BUFFER, m_frame_rect.GetWidth() * m_frame_rect.GetHeight() * 4, 0, GL_STREAM_READ);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    m_pbo_index = 0;
+
+    m_shmdata_buffer = (unsigned int*)MEM_mallocN(sizeof(int) * m_frame_rect.GetWidth() * m_frame_rect.GetHeight(), "shmdata_buffer");
+#endif
 }
 
 void KX_BlenderCanvasFbo::Init()
@@ -141,7 +162,7 @@ void KX_BlenderCanvasFbo::SwapBuffers()
 	wm_window_swap_buffers(m_win);
 
 #ifdef WITH_SHMDATA
-    FrontBufferToShmdata();
+    //FrontBufferToShmdata();
 #endif
 }
 
@@ -195,9 +216,31 @@ void KX_BlenderCanvasFbo::EndDraw()
     // Now that the rendering has been done to the FBO, we can show it in the window
     glDrawBuffer(GL_BACK);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
-    glBlitFramebuffer(m_frame_rect.GetLeft(), m_frame_rect.GetBottom(), m_frame_rect.GetRight(), m_frame_rect.GetTop(),
-                      m_frame_rect.GetLeft(), m_frame_rect.GetBottom(), m_frame_rect.GetRight(), m_frame_rect.GetTop(),
-                      GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(m_area_rect.GetLeft(), m_area_rect.GetBottom(), m_area_rect.GetRight(), m_area_rect.GetTop(),
+                      m_area_rect.GetLeft(), m_area_rect.GetBottom(), m_area_rect.GetRight(), m_area_rect.GetTop(),
+                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBlitFramebuffer(m_area_rect.GetLeft(), m_area_rect.GetBottom(), m_area_rect.GetRight(), m_area_rect.GetTop(),
+                      m_area_rect.GetLeft(), m_area_rect.GetBottom(), m_area_rect.GetRight(), m_area_rect.GetTop(),
+                      GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+
+#ifdef WITH_SHMDATA
+    // We wait for previous copy to finish
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[(m_pbo_index + 1) % 2]);
+    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+    // And we can copy it into one of the pbos
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
+    GLubyte* gpuPixels = (GLubyte*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+    if (gpuPixels != NULL)
+        memcpy((void*)m_shmdata_buffer, gpuPixels, m_area_rect.GetWidth() * m_area_rect.GetHeight() * 4);
+    m_pbo_index = (m_pbo_index + 1) % 2;
+    
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
+    glReadPixels(m_frame_rect.GetLeft(), m_frame_rect.GetBottom(), m_frame_rect.GetWidth(), m_frame_rect.GetHeight(), GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+    bufferToShmdata(m_shmdata_buffer);
+#endif
 }
 
 void KX_BlenderCanvasFbo::BeginFrame()
@@ -388,34 +431,36 @@ static unsigned int *screenshot(ScrArea *curarea, int *dumpsx, int *dumpsy)
 	if (*dumpsx && *dumpsy) {
 
 		dumprect= (unsigned int *)MEM_mallocN(sizeof(int) * (*dumpsx) * (*dumpsy), "dumprect");
-		glReadBuffer(GL_FRONT);
+		//glReadBuffer(GL_FRONT);
 		glReadPixels(x, y, *dumpsx, *dumpsy, GL_RGBA, GL_UNSIGNED_BYTE, dumprect);
 		glFinish();
-		glReadBuffer(GL_BACK);
+		//glReadBuffer(GL_BACK);
 	}
 
 	return dumprect;
 }
 
 #ifdef WITH_SHMDATA
-void KX_BlenderCanvasFbo::FrontBufferToShmdata()
+void KX_BlenderCanvasFbo::bufferToShmdata(unsigned int *buffer)
 {
     if (strcmp(m_shmdata_filename, "") == 0)
         return;
 
-	ScrArea area_dummy= {0};
-	unsigned int *dumprect;
-	int dumpsx, dumpsy;
+	//ScrArea area_dummy= {0};
+	//unsigned int *dumprect;
+	//int dumpsx, dumpsy;
 
-	area_dummy.totrct.xmin = m_frame_rect.GetLeft();
-	area_dummy.totrct.xmax = m_frame_rect.GetRight();
-	area_dummy.totrct.ymin = m_frame_rect.GetBottom();
-	area_dummy.totrct.ymax = m_frame_rect.GetTop();
+	//area_dummy.totrct.xmin = m_frame_rect.GetLeft();
+	//area_dummy.totrct.xmax = m_frame_rect.GetRight();
+	//area_dummy.totrct.ymin = m_frame_rect.GetBottom();
+	//area_dummy.totrct.ymax = m_frame_rect.GetTop();
 
-	dumprect = screenshot(&area_dummy, &dumpsx, &dumpsy);
+    //glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
+	//dumprect = screenshot(&area_dummy, &dumpsx, &dumpsy);
+    //glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
-	if (dumprect) {
-        if (m_shmdata_writer != NULL && (dumpsx != m_shmdata_writer_w || dumpsy != m_shmdata_writer_h))
+	if (buffer) {
+        if (m_shmdata_writer != NULL && (m_frame_rect.GetWidth() != m_shmdata_writer_w || m_frame_rect.GetHeight() != m_shmdata_writer_h))
         {
             shmdata_any_writer_close(m_shmdata_writer);
             m_shmdata_writer = NULL;
@@ -426,11 +471,11 @@ void KX_BlenderCanvasFbo::FrontBufferToShmdata()
             m_shmdata_writer = shmdata_any_writer_init();
 
             char buffer[256] = "";
-            sprintf(buffer, "video/x-raw-rgb,bpp=%i,endianness=4321,depth=%i,red_mask=-16777216,green_mask=16711680,blue_mask=65280,width=%i,height=%i,framerate=60/1", 32, 32, dumpsx, dumpsy);
+            sprintf(buffer, "video/x-raw-rgb,bpp=%i,endianness=4321,depth=%i,red_mask=-16777216,green_mask=16711680,blue_mask=65280,width=%i,height=%i,framerate=60/1", 32, 32, m_frame_rect.GetWidth(), m_frame_rect.GetHeight());
             shmdata_any_writer_set_data_type(m_shmdata_writer, buffer);
 
-            m_shmdata_writer_w = dumpsx;
-            m_shmdata_writer_h = dumpsy;
+            m_shmdata_writer_w = m_frame_rect.GetWidth();
+            m_shmdata_writer_h = m_frame_rect.GetHeight();
 
             if (!shmdata_any_writer_set_path(m_shmdata_writer, m_shmdata_filename))
             {
@@ -442,9 +487,7 @@ void KX_BlenderCanvasFbo::FrontBufferToShmdata()
         }
 
         if (m_shmdata_writer != NULL)
-            shmdata_any_writer_push_data(m_shmdata_writer, (void*)dumprect, dumpsx * dumpsy * 4 * sizeof(char), 0, NULL, NULL);
-
-        MEM_freeN(dumprect);
+            shmdata_any_writer_push_data(m_shmdata_writer, (void*)buffer, m_frame_rect.GetWidth() * m_frame_rect.GetHeight() * 4 * sizeof(char), 0, NULL, NULL);
 	}
 }
 #endif
@@ -461,7 +504,9 @@ void KX_BlenderCanvasFbo::MakeScreenShot(const char *filename)
 	area_dummy.totrct.ymin = m_frame_rect.GetBottom();
 	area_dummy.totrct.ymax = m_frame_rect.GetTop();
 
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
 	dumprect = screenshot(&area_dummy, &dumpsx, &dumpsy);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 
 	if (dumprect) {
 		/* initialize image file format data */

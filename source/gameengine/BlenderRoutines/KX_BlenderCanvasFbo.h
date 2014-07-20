@@ -225,13 +225,20 @@ private:
     GLuint m_fbo;
     GLuint m_fbo_depth;
     GLuint m_fbo_color;
+    RAS_Rect m_fbo_rect;
 
 #ifdef WITH_SHMDATA
+    /** PBO / Copy to shmdata related */
     shmdata_any_writer_t *m_shmdata_writer;
     char m_shmdata_filename[256];
     int m_shmdata_writer_w, m_shmdata_writer_h;
+    bool m_copy_to_shmdata;
 
-    void FrontBufferToShmdata();
+    GLuint m_pbos[2];
+    int m_pbo_index;
+    unsigned int* m_shmdata_buffer;
+
+    void bufferToShmdata(unsigned int *buffer);
 #endif
 
     void InitializeFbo();

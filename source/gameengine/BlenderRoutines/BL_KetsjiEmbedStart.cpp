@@ -136,15 +136,16 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 	bool render = ketsjiengine->NextFrame();
 
 	if (render) {
-		if (draw_letterbox) {
-			// Clear screen to border color
-			// We do this here since we set the canvas to be within the frames. This means the engine
-			// itself is unaware of the extra space, so we clear the whole region for it.
-			glClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2], 1.0f);
-			glViewport(ar->winrct.xmin, ar->winrct.ymin,
-			           BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
-			glClear(GL_COLOR_BUFFER_BIT);
-		}
+        // TODO: find out why what this glClear prevents camera display with KX_BlenderCanvasFbo.
+		//if (draw_letterbox) {
+		//	// Clear screen to border color
+		//	// We do this here since we set the canvas to be within the frames. This means the engine
+		//	// itself is unaware of the extra space, so we clear the whole region for it.
+		//	glClearColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2], 1.0f);
+		//	glViewport(ar->winrct.xmin, ar->winrct.ymin,
+		//	           BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
+		//	glClear(GL_COLOR_BUFFER_BIT);
+		//}
 
 		// render the frame
 		ketsjiengine->Render();
