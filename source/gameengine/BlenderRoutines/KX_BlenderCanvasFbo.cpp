@@ -75,7 +75,6 @@ m_frame_rect(rect)
 #ifdef WITH_SHMDATA
     m_shmdata_writer = NULL;
     sprintf(m_shmdata_filename, "");
-    m_shmdata_buffer = NULL;
 #endif
 
     InitializeFbo();
@@ -90,8 +89,6 @@ KX_BlenderCanvasFbo::~KX_BlenderCanvasFbo()
 #ifdef WITH_SHMDATA
     if (m_shmdata_writer != NULL)
         shmdata_any_writer_close(m_shmdata_writer);
-    if (m_shmdata_buffer != NULL)
-        MEM_freeN(m_shmdata_buffer);
 
     glDeleteBuffers(2, m_pbos);
 #endif
@@ -146,8 +143,6 @@ void KX_BlenderCanvasFbo::InitializeFbo()
     glBufferData(GL_PIXEL_PACK_BUFFER, m_frame_rect.GetWidth() * m_frame_rect.GetHeight() * 4, 0, GL_STREAM_READ);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     m_pbo_index = 0;
-
-    m_shmdata_buffer = (unsigned int*)MEM_mallocN(sizeof(int) * m_frame_rect.GetWidth() * m_frame_rect.GetHeight(), "shmdata_buffer");
 #endif
 }
 
@@ -230,16 +225,14 @@ void KX_BlenderCanvasFbo::EndDraw()
     // And we can copy it into one of the pbos
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
     GLubyte* gpuPixels = (GLubyte*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-    if (gpuPixels != NULL)
-        memcpy((void*)m_shmdata_buffer, gpuPixels, m_area_rect.GetWidth() * m_area_rect.GetHeight() * 4);
+
     m_pbo_index = (m_pbo_index + 1) % 2;
-    
     glReadBuffer(GL_COLOR_ATTACHMENT0);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
     glReadPixels(m_frame_rect.GetLeft(), m_frame_rect.GetBottom(), m_frame_rect.GetWidth(), m_frame_rect.GetHeight(), GL_RGBA, GL_UNSIGNED_BYTE, 0);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
-    bufferToShmdata(m_shmdata_buffer);
+    bufferToShmdata((unsigned int*)gpuPixels);
 #endif
 }
 

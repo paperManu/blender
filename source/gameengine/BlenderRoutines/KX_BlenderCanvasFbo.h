@@ -236,7 +236,6 @@ private:
 
     GLuint m_pbos[2];
     int m_pbo_index;
-    unsigned int* m_shmdata_buffer;
 
     void bufferToShmdata(unsigned int *buffer);
 #endif
