@@ -162,6 +162,15 @@ public:
 		m_displayarea= *rect;
 	};
 
+    virtual
+        void
+    SetRenderingResolution(
+        int w, int h
+    ) {
+        m_fbo_rect.SetRight(w);
+        m_fbo_rect.SetTop(h);
+    }
+
 		RAS_Rect &
 	GetWindowArea(
 	);
@@ -222,6 +231,7 @@ private:
 	int			m_area_top;
 
     /** Framebuffer object related stuff */
+    bool m_fbo_ready;
     GLuint m_fbo;
     GLuint m_fbo_depth;
     GLuint m_fbo_color;

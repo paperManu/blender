@@ -173,6 +173,15 @@ public:
 	SetDisplayArea(RAS_Rect *rect
 	) = 0;
 
+    /**
+     * Set the resolution used inside the engine
+     */
+    virtual
+        void
+    SetRenderingResolution(
+        int w, int h
+    ) {};
+
 	/**
 	 * Used to get canvas area within blender.
 	 */
