@@ -316,8 +316,14 @@ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
             col.prop(gs, "use_desktop")
             col.active = gs.show_fullscreen
 
+        row = layout.row()
+        row.label(text="Shared memory output:")
+        row = layout.row(align=True)
         col = row.column()
         col.prop(gs, "render_to_shared_memory")
+        col = row.column()
+        col.prop(gs, "shared_memory_path", text="")
+        col.active = gs.render_to_shared_memory
 
         col = layout.column()
         col.label(text="Quality:")

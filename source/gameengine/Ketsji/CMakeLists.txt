@@ -265,9 +265,4 @@ if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
 
-if(WITH_SHMDATA)
-    add_definitions(-DWITH_SHMDATA)
-endif()
-
-
 blender_add_lib(ge_logic_ketsji "${SRC}" "${INC}" "${INC_SYS}")

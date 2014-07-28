@@ -3497,14 +3497,20 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Fullscreen", "Start player in a new fullscreen display");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
+	prop = RNA_def_property(srna, "use_desktop", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "playerflag", GAME_PLAYER_DESKTOP_RESOLUTION);
+	RNA_def_property_ui_text(prop, "Desktop", "Use the current desktop resolution in fullscreen mode");
+	RNA_def_property_update(prop, NC_SCENE, NULL);
+
 	prop = RNA_def_property(srna, "render_to_shared_memory", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "playerflag", GAME_PLAYER_RENDER_TO_SHARED_MEMORY);
 	RNA_def_property_ui_text(prop, "Shared memory", "Render in a shared memory, with an independent resolution");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
-	prop = RNA_def_property(srna, "use_desktop", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "playerflag", GAME_PLAYER_DESKTOP_RESOLUTION);
-	RNA_def_property_ui_text(prop, "Desktop", "Use the current desktop resolution in fullscreen mode");
+	prop = RNA_def_property(srna, "shared_memory_path", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_string_sdna(prop, NULL, "shmpath");
+	RNA_def_property_ui_text(prop, "Shared memory Path",
+	                         "Shared memory path used as an output for offscreen rendering");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 
 	/* Framing */

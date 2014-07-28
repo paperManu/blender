@@ -293,7 +293,12 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		// create the canvas and rasterizer
 		RAS_ICanvas* canvas = new KX_BlenderCanvas(wm, win, area_rect, ar);
         if (startscene->gm.playerflag == GAME_PLAYER_RENDER_TO_SHARED_MEMORY)
+        {
             canvas->SetRenderingResolution(startscene->gm.xplay, startscene->gm.yplay);
+#ifdef WITH_SHMDATA
+            canvas->SetSharedMemoryPath(startscene->gm.shmpath);
+#endif
+        }
 		
 		// default mouse state set on render panel
 		if (mouse_state)

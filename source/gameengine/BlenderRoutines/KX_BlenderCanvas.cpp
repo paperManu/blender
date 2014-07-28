@@ -541,9 +541,11 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 }
 
 #ifdef WITH_SHMDATA
-void KX_BlenderCanvas::EnableShmdata(const char *filename)
+void KX_BlenderCanvas::SetSharedMemoryPath(const char *filename)
 {
-    if (filename != NULL)
+    if (filename != NULL && strcmp(filename, "") != 0)
         sprintf(m_shmdata_filename, "%s", filename);
+    else
+        sprintf(m_shmdata_filename, "%s", "/tmp/bge");
 }
 #endif

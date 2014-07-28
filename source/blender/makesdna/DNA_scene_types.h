@@ -680,6 +680,8 @@ typedef struct GameData {
 	short playerflag, xplay, yplay, freqplay;
 	short depth, attrib, rt1, rt2;
 	short aasamples, pad4[3];
+	/* path to shared memory output */
+	char shmpath[1024]; /* 1024 = FILE_MAX */
 
 	/* stereo/dome mode */
 	struct GameDome dome;

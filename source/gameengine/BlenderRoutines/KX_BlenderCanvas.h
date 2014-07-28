@@ -210,7 +210,7 @@ public:
 
 #ifdef WITH_SHMDATA
         void
-    EnableShmdata(
+    SetSharedMemoryPath(
         const char* filename
     );
 #endif

@@ -246,13 +246,11 @@ public:
 		const char* filename
 	)=0;
 
-#ifdef WITH_SHMDATA
     virtual
         void
-    EnableShmdata(
+    SetSharedMemoryPath(
         const char* filename
     ) {}
-#endif
 
 	virtual
 		void 
