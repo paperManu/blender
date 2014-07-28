@@ -167,6 +167,7 @@ public:
     SetRenderingResolution(
         int w, int h
     ) {
+        m_use_fbo = true;
         m_fbo_rect.SetRight(w + m_fbo_rect.GetLeft());
         m_fbo_rect.SetTop(h + m_fbo_rect.GetBottom());
     }
@@ -231,7 +232,7 @@ private:
 	int			m_area_top;
 
     /** Framebuffer object related stuff */
-    bool m_fbo_ready;
+    bool m_use_fbo, m_fbo_ready;
     GLuint m_fbo;
     GLuint m_fbo_depth;
     GLuint m_fbo_color;

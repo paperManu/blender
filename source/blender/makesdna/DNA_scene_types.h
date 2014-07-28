@@ -771,6 +771,7 @@ typedef struct GameData {
 /* GameData.playerflag */
 #define GAME_PLAYER_FULLSCREEN				(1 << 0)
 #define GAME_PLAYER_DESKTOP_RESOLUTION		(1 << 1)
+#define GAME_PLAYER_RENDER_TO_SHARED_MEMORY (1 << 2)
 
 /* GameData.matmode */
 enum {

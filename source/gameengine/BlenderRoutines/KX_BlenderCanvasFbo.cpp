@@ -64,6 +64,7 @@ m_wm(wm),
 m_win(win),
 m_frame_rect(rect),
 m_fbo_rect(rect),
+m_use_fbo(false),
 m_fbo_ready(false)
 {
 	// initialize area so that it's available for game logic on frame 1 (ImageViewport)
@@ -82,16 +83,19 @@ m_fbo_ready(false)
 
 KX_BlenderCanvasFbo::~KX_BlenderCanvasFbo()
 {
-    glDeleteFramebuffers(1, &m_fbo);
-    glDeleteTextures(1, &m_fbo_depth);
-    glDeleteTextures(1, &m_fbo_color);
+    if (m_use_fbo)
+    {
+        glDeleteFramebuffers(1, &m_fbo);
+        glDeleteTextures(1, &m_fbo_depth);
+        glDeleteTextures(1, &m_fbo_color);
 
 #ifdef WITH_SHMDATA
-    if (m_shmdata_writer != NULL)
-        shmdata_any_writer_close(m_shmdata_writer);
-
-    glDeleteBuffers(2, m_pbos);
+        if (m_shmdata_writer != NULL)
+            shmdata_any_writer_close(m_shmdata_writer);
 #endif
+
+        glDeleteBuffers(2, m_pbos);
+    }
 }
 
 void KX_BlenderCanvasFbo::InitializeFbo()
@@ -185,57 +189,69 @@ bool KX_BlenderCanvasFbo::GetFullScreen()
 
 bool KX_BlenderCanvasFbo::BeginDraw()
 {
-    if (!m_fbo_ready)
+    if (m_use_fbo)
     {
-        InitializeFbo();
-        m_fbo_ready = true;
+        if (!m_fbo_ready)
+        {
+            InitializeFbo();
+            m_fbo_ready = true;
+        }
+	    // in case of multi-window we need to ensure we are drawing to the correct
+	    // window always, because it may change in window event handling
+	    wm_window_make_drawable(m_wm, m_win);
+
+        GLenum fboBuffers[1] = {
+            GL_COLOR_ATTACHMENT0
+        };
+
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
+        glDrawBuffers(1, fboBuffers);
+
+	    return true;
     }
-	// in case of multi-window we need to ensure we are drawing to the correct
-	// window always, because it may change in window event handling
-	wm_window_make_drawable(m_wm, m_win);
-
-    GLenum fboBuffers[1] = {
-        GL_COLOR_ATTACHMENT0
-    };
-
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_fbo);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo);
-    glDrawBuffers(1, fboBuffers);
-
-	return true;
+    else
+    {
+	    // in case of multi-window we need to ensure we are drawing to the correct
+	    // window always, because it may change in window event handling
+	    wm_window_make_drawable(m_wm, m_win);
+        
+        return true;
+    }
 }
 
 void KX_BlenderCanvasFbo::EndDraw()
 {
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-    // Now that the rendering has been done to the FBO, we can show it in the window
-    glDrawBuffer(GL_BACK);
-    glBlitFramebuffer(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetRight(), m_fbo_rect.GetTop(),
-                      m_area_rect.GetLeft(), m_area_rect.GetBottom(), m_area_rect.GetRight(), m_area_rect.GetTop(),
-                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
-
-    printf("-- %i %i %i %i\n", m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetRight(), m_fbo_rect.GetTop()); 
-    printf("++ %i %i %i %i\n", m_area_rect.GetLeft(), m_area_rect.GetBottom(), m_area_rect.GetRight(), m_area_rect.GetTop()); 
-
-#ifdef WITH_SHMDATA
-    // We wait for previous copy to finish
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[(m_pbo_index + 1) % 2]);
-    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-    // And we can copy it into one of the pbos
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
-    GLubyte* gpuPixels = (GLubyte*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-
-    m_pbo_index = (m_pbo_index + 1) % 2;
-    glReadBuffer(GL_COLOR_ATTACHMENT0);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
-    glReadPixels(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight(), GL_RGBA, GL_UNSIGNED_BYTE, 0);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-
-    bufferToShmdata((unsigned int*)gpuPixels);
-#endif
-
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    if (m_use_fbo)
+    {
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    
+        // Now that the rendering has been done to the FBO, we can show it in the window
+        glDrawBuffer(GL_BACK);
+        glBlitFramebuffer(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetRight(), m_fbo_rect.GetTop(),
+                          m_area_rect.GetLeft(), m_area_rect.GetBottom(), m_area_rect.GetRight(), m_area_rect.GetTop(),
+                          GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    
+    #ifdef WITH_SHMDATA
+        // We wait for previous copy to finish
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[(m_pbo_index + 1) % 2]);
+        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+        // And we can copy it into one of the pbos
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
+        GLubyte* gpuPixels = (GLubyte*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+    
+        m_pbo_index = (m_pbo_index + 1) % 2;
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
+        glReadPixels(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight(), GL_RGBA, GL_UNSIGNED_BYTE, 0);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    
+        bufferToShmdata((unsigned int*)gpuPixels);
+    #endif
+    
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    }
+    // Nothing to do if we do not render to FBO
 }
 
 void KX_BlenderCanvasFbo::BeginFrame()
@@ -318,31 +334,37 @@ SetViewPort(
 	 * the width,height is calculated including both pixels
 	 * therefore: max - min + 1
 	 */
-	int vp_width = (x2 - x1) + 1;
-	int vp_height = (y2 - y1) + 1;
-	int minx = m_frame_rect.GetLeft();
-	int miny = m_frame_rect.GetBottom();
 
-	//m_area_rect.SetLeft(minx + x1);
-	//m_area_rect.SetBottom(miny + y1);
-	//m_area_rect.SetRight(minx + x2);
-	//m_area_rect.SetTop(miny + y2);
+    if (m_use_fbo)
+    {
+	    m_viewport[0] = m_fbo_rect.GetLeft();
+	    m_viewport[1] = m_fbo_rect.GetBottom();
+	    m_viewport[2] = m_fbo_rect.GetWidth();
+	    m_viewport[3] = m_fbo_rect.GetHeight();
+        
+        glViewport(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight());
+        glScissor(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight());
+    }
+    else
+    {
+	    int vp_width = (x2 - x1) + 1;
+	    int vp_height = (y2 - y1) + 1;
+	    int minx = m_frame_rect.GetLeft();
+	    int miny = m_frame_rect.GetBottom();
 
-	//m_viewport[0] = minx+x1;
-	//m_viewport[1] = miny+y1;
-	//m_viewport[2] = vp_width;
-	//m_viewport[3] = vp_height;
+	    m_area_rect.SetLeft(minx + x1);
+	    m_area_rect.SetBottom(miny + y1);
+	    m_area_rect.SetRight(minx + x2);
+	    m_area_rect.SetTop(miny + y2);
 
-	m_viewport[0] = m_fbo_rect.GetLeft();
-	m_viewport[1] = m_fbo_rect.GetBottom();
-	m_viewport[2] = m_fbo_rect.GetWidth();
-	m_viewport[3] = m_fbo_rect.GetHeight();
+	    m_viewport[0] = minx+x1;
+	    m_viewport[1] = miny+y1;
+	    m_viewport[2] = vp_width;
+	    m_viewport[3] = vp_height;
 
-	//glViewport(minx + x1, miny + y1, vp_width, vp_height);
-	//glScissor(minx + x1, miny + y1, vp_width, vp_height);
-    
-    glViewport(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight());
-    glScissor(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight());
+	    glViewport(minx + x1, miny + y1, vp_width, vp_height);
+	    glScissor(minx + x1, miny + y1, vp_width, vp_height);
+    }    
 }
 
 	void

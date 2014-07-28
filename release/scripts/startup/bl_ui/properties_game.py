@@ -316,6 +316,9 @@ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
             col.prop(gs, "use_desktop")
             col.active = gs.show_fullscreen
 
+        col = row.column()
+        col.prop(gs, "render_to_shared_memory")
+
         col = layout.column()
         col.label(text="Quality:")
         col.prop(gs, "samples")
