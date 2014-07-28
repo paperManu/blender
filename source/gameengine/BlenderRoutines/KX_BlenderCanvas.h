@@ -29,8 +29,8 @@
  *  \ingroup blroutines
  */
 
-#ifndef __KX_BLENDERCANVAS_H__
-#define __KX_BLENDERCANVAS_H__
+#ifndef __KX_BLENDERKANVAS_H__
+#define __KX_BLENDERKANVAS_H__
 
 #ifdef WIN32
 #include <windows.h>
@@ -41,6 +41,10 @@
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
+#endif
+
+#ifdef WITH_SHMDATA
+#include <shmdata/any-data-writer.h>
 #endif
 
 struct ARegion;
@@ -159,6 +163,16 @@ public:
 		m_displayarea= *rect;
 	};
 
+    virtual
+        void
+    SetRenderingResolution(
+        int w, int h
+    ) {
+        m_use_fbo = true;
+        m_fbo_rect.SetRight(w + m_fbo_rect.GetLeft());
+        m_fbo_rect.SetTop(h + m_fbo_rect.GetBottom());
+    }
+
 		RAS_Rect &
 	GetWindowArea(
 	);
@@ -194,6 +208,13 @@ public:
 		const char* filename
 	);
 
+#ifdef WITH_SHMDATA
+        void
+    EnableShmdata(
+        const char* filename
+    );
+#endif
+	
 		bool 
 	BeginDraw(
 	);
@@ -211,9 +232,31 @@ private:
 	int			m_area_left;
 	int			m_area_top;
 
+    /** Framebuffer object related stuff */
+    bool m_use_fbo, m_fbo_ready;
+    GLuint m_fbo;
+    GLuint m_fbo_depth;
+    GLuint m_fbo_color;
+    RAS_Rect m_fbo_rect;
+
+#ifdef WITH_SHMDATA
+    /** PBO / Copy to shmdata related */
+    shmdata_any_writer_t *m_shmdata_writer;
+    char m_shmdata_filename[256];
+    int m_shmdata_writer_w, m_shmdata_writer_h;
+    bool m_copy_to_shmdata;
+
+    GLuint m_pbos[2];
+    int m_pbo_index;
+
+    void bufferToShmdata(unsigned int *buffer);
+#endif
+
+    void InitializeFbo();
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvas")
 #endif
 };
 
-#endif  /* __KX_BLENDERCANVAS_H__ */
+#endif  /* __KX_BLENDERKANVAS_H__ */

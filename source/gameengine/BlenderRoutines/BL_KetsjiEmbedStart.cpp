@@ -42,7 +42,7 @@
 
 #include "glew-mx.h"
 
-#include "KX_BlenderCanvasFbo.h"
+#include "KX_BlenderCanvas.h"
 #include "KX_BlenderKeyboardDevice.h"
 #include "KX_BlenderMouseDevice.h"
 #include "KX_BlenderSystem.h"
@@ -136,7 +136,7 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 	bool render = ketsjiengine->NextFrame();
 
 	if (render) {
-        // TODO: find out why what this glClear prevents camera display with KX_BlenderCanvasFbo.
+        // TODO: find out why what this glClear prevents camera display with KX_BlenderCanvas.
 		//if (draw_letterbox) {
 		//	// Clear screen to border color
 		//	// We do this here since we set the canvas to be within the frames. This means the engine
@@ -291,7 +291,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		if (animation_record) usefixed= false; /* override since you don't want to run full-speed for sim recording */
 
 		// create the canvas and rasterizer
-		RAS_ICanvas* canvas = new KX_BlenderCanvasFbo(wm, win, area_rect, ar);
+		RAS_ICanvas* canvas = new KX_BlenderCanvas(wm, win, area_rect, ar);
         if (startscene->gm.playerflag == GAME_PLAYER_RENDER_TO_SHARED_MEMORY)
             canvas->SetRenderingResolution(startscene->gm.xplay, startscene->gm.yplay);
 		
