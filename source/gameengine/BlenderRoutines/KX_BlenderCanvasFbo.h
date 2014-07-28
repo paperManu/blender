@@ -167,8 +167,8 @@ public:
     SetRenderingResolution(
         int w, int h
     ) {
-        m_fbo_rect.SetRight(w);
-        m_fbo_rect.SetTop(h);
+        m_fbo_rect.SetRight(w + m_fbo_rect.GetLeft());
+        m_fbo_rect.SetTop(h + m_fbo_rect.GetBottom());
     }
 
 		RAS_Rect &
