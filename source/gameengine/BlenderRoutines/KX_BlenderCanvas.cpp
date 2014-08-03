@@ -129,22 +129,22 @@ void KX_BlenderCanvas::InitializeFbo()
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE)
     {
-        printf("Error initializing FBO\n");
+        printf("Error initializing offscreen rendering\n");
         glDeleteFramebuffers(1, &m_fbo);
         glDeleteTextures(1, &m_fbo_depth);
         glDeleteTextures(1, &m_fbo_color);
     }
     else
-        printf("FBO correctly initialized\n");
+        printf("Offscreen rendering correctly initialized\n");
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 #ifdef WITH_SHMDATA
     glGenBuffers(2, m_pbos);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[0]);
-    glBufferData(GL_PIXEL_PACK_BUFFER, m_fbo_rect.GetWidth() * m_fbo_rect.GetHeight() * 4, 0, GL_STREAM_READ);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[1]);
-    glBufferData(GL_PIXEL_PACK_BUFFER, m_fbo_rect.GetWidth() * m_fbo_rect.GetHeight() * 4, 0, GL_STREAM_READ);
+    for (int i = 0; i < 2; ++i) {
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[i]);
+        glBufferData(GL_PIXEL_PACK_BUFFER, m_fbo_rect.GetWidth() * m_fbo_rect.GetHeight() * 4, 0, GL_STREAM_READ);
+    }
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     m_pbo_index = 0;
 #endif
@@ -233,20 +233,18 @@ void KX_BlenderCanvas::EndDraw()
                           GL_COLOR_BUFFER_BIT, GL_LINEAR);
     
     #ifdef WITH_SHMDATA
-        // We wait for previous copy to finish
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[(m_pbo_index + 1) % 2]);
-        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
         // And we can copy it into one of the pbos
         glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
         GLubyte* gpuPixels = (GLubyte*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+        bufferToShmdata((unsigned int*)gpuPixels);
     
         m_pbo_index = (m_pbo_index + 1) % 2;
-        glReadBuffer(GL_COLOR_ATTACHMENT0);
         glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
+        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
         glReadPixels(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight(), GL_RGBA, GL_UNSIGNED_BYTE, 0);
         glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     
-        bufferToShmdata((unsigned int*)gpuPixels);
     #endif
     
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
