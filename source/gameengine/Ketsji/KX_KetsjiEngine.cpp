@@ -843,6 +843,7 @@ void KX_KetsjiEngine::Render()
 	}
 
 	m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);
+    //m_canvas->EndDraw();
 
 	// BeginFrame() sets the actual drawing area. You can use a part of the window
 	if (!BeginFrame())

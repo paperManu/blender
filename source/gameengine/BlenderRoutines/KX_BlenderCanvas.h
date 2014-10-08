@@ -36,6 +36,8 @@
 #include <windows.h>
 #endif
 
+#include <vector>
+
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 
@@ -163,15 +165,15 @@ public:
 		m_displayarea= *rect;
 	};
 
-    virtual
-        void
-    SetRenderingResolution(
-        int w, int h
-    ) {
-        m_use_fbo = true;
-        m_fbo_rect.SetRight(w + m_fbo_rect.GetLeft());
-        m_fbo_rect.SetTop(h + m_fbo_rect.GetBottom());
-    }
+  virtual
+	  void
+	SetRenderingResolution(
+	  int w, int h
+	) {
+	  m_use_fbo = true;
+	  m_fbo_rect.SetRight(w + m_fbo_rect.GetLeft());
+	  m_fbo_rect.SetTop(h + m_fbo_rect.GetBottom());
+	}
 
 		RAS_Rect &
 	GetWindowArea(
@@ -209,10 +211,10 @@ public:
 	);
 
 #ifdef WITH_SHMDATA
-        void
-    SetSharedMemoryPath(
-        const char* filename
-    );
+		  void
+	 SetSharedMemoryPath(
+		  const char* filename
+	 );
 #endif
 	
 		bool 
@@ -232,27 +234,30 @@ private:
 	int			m_area_left;
 	int			m_area_top;
 
-    /** Framebuffer object related stuff */
-    bool m_use_fbo, m_fbo_ready;
-    GLuint m_fbo;
-    GLuint m_fbo_depth;
-    GLuint m_fbo_color;
-    RAS_Rect m_fbo_rect;
+	 /** Framebuffer object related stuff */
+	 bool m_use_fbo, m_fbo_ready;
+	 GLuint m_fbo;
+	 GLuint m_fbo_depth;
+	 GLuint m_fbo_color;
+	 RAS_Rect m_fbo_rect;
+   std::vector<GLenum> m_draw_buffer_stack;
+   int test;
 
 #ifdef WITH_SHMDATA
-    /** PBO / Copy to shmdata related */
-    shmdata_any_writer_t *m_shmdata_writer;
-    char m_shmdata_filename[256];
-    int m_shmdata_writer_w, m_shmdata_writer_h;
-    bool m_copy_to_shmdata;
+	 /** PBO / Copy to shmdata related */
+	 shmdata_any_writer_t *m_shmdata_writer;
+	 char m_shmdata_filename[256];
+	 int m_shmdata_writer_w, m_shmdata_writer_h;
+	 bool m_copy_to_shmdata;
 
-    GLuint m_pbos[2];
-    int m_pbo_index;
+	 GLuint m_pbos[2];
+	 int m_pbo_index;
 
-    void bufferToShmdata(unsigned int *buffer);
+   void SetDrawBuffer();
+	 void bufferToShmdata(unsigned int *buffer);
 #endif
 
-    void InitializeFbo();
+	 void InitializeFbo();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvas")

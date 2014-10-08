@@ -173,14 +173,14 @@ public:
 	SetDisplayArea(RAS_Rect *rect
 	) = 0;
 
-    /**
-     * Set the resolution used inside the engine
-     */
-    virtual
-        void
-    SetRenderingResolution(
-        int w, int h
-    ) {};
+  /**
+   * Set the resolution used inside the engine
+   */
+  virtual
+      void
+  SetRenderingResolution(
+      int w, int h
+  ) {};
 
 	/**
 	 * Used to get canvas area within blender.
@@ -247,11 +247,11 @@ public:
 	)=0;
 
 #ifdef WITH_SHMDATA
-    virtual
-        void
-    SetSharedMemoryPath(
-        const char* filename
-    ) {}
+  virtual
+      void
+  SetSharedMemoryPath(
+      const char* filename
+  ) {}
 #endif
 
 	virtual
