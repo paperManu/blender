@@ -144,7 +144,7 @@ void KX_BlenderCanvas::InitializeFbo()
 	 glGenBuffers(2, m_pbos);
 	 for (int i = 0; i < 2; ++i) {
 		  glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[i]);
-		  glBufferData(GL_PIXEL_PACK_BUFFER, m_fbo_rect.GetWidth() * m_fbo_rect.GetHeight() * 4, 0, GL_STREAM_READ);
+		  glBufferData(GL_PIXEL_PACK_BUFFER, m_fbo_rect.GetWidth() * m_fbo_rect.GetHeight() * 3, 0, GL_STREAM_READ);
 	 }
 	 glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 	 m_pbo_index = 0;
@@ -180,7 +180,7 @@ void KX_BlenderCanvas::SwapBuffers()
 		glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbos[m_pbo_index]);
 		glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
 		glReadBuffer(GL_COLOR_ATTACHMENT0);
-		glReadPixels(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight(), GL_RGBA, GL_UNSIGNED_BYTE, 0);
+		glReadPixels(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight(), GL_RGB, GL_UNSIGNED_BYTE, 0);
 		glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 #endif
 	
@@ -487,7 +487,7 @@ void KX_BlenderCanvas::bufferToShmdata(unsigned int *buffer)
 				m_shmdata_writer = shmdata_any_writer_init();
 
 				char buffer[256] = "";
-				sprintf(buffer, "video/x-raw-rgb,bpp=%i,endianness=4321,depth=%i,red_mask=-16777216,green_mask=16711680,blue_mask=65280,width=%i,height=%i,framerate=60/1", 32, 32, m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight());
+				sprintf(buffer, "video/x-raw-rgb,bpp=%i,endianness=4321,depth=%i,red_mask=16711680,green_mask=65280,blue_mask=255,width=%i,height=%i,framerate=60/1", 24, 24, m_fbo_rect.GetWidth(), m_fbo_rect.GetHeight());
 				shmdata_any_writer_set_data_type(m_shmdata_writer, buffer);
 
 				m_shmdata_writer_w = m_fbo_rect.GetWidth();
@@ -503,7 +503,7 @@ void KX_BlenderCanvas::bufferToShmdata(unsigned int *buffer)
 		  }
 
 		  if (m_shmdata_writer != NULL)
-				shmdata_any_writer_push_data(m_shmdata_writer, (void*)buffer, m_fbo_rect.GetWidth() * m_fbo_rect.GetHeight() * 4 * sizeof(char), 0, NULL, NULL);
+				shmdata_any_writer_push_data(m_shmdata_writer, (void*)buffer, m_fbo_rect.GetWidth() * m_fbo_rect.GetHeight() * 3 * sizeof(char), 0, NULL, NULL);
 	}
 }
 #endif
