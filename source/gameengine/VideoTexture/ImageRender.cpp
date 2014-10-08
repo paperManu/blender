@@ -276,6 +276,11 @@ void ImageRender::Render()
 
 	m_scene->UpdateAnimations(m_engine->GetFrameTime());
 
+#ifdef WITH_PYTHON
+	// Run any pre-drawing python callbacks
+	m_scene->RunDrawingCallbacks(m_scene->GetPreDrawCB());
+#endif
+
 	m_scene->RenderBuckets(camtrans, m_rasterizer);
 
 	m_scene->RenderFonts();
