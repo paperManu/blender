@@ -65,8 +65,7 @@ m_win(win),
 m_frame_rect(rect),
 m_use_fbo(false),
 m_fbo_rect(rect),
-m_fbo_ready(false),
-test(0)
+m_fbo_ready(false)
 {
 	// initialize area so that it's available for game logic on frame 1 (ImageViewport)
 	m_area_rect = rect;
@@ -216,6 +215,7 @@ bool KX_BlenderCanvas::GetFullScreen()
 	return false;
 }
 
+#ifdef WITH_SHMDATA
 void KX_BlenderCanvas::SetDrawBuffer()
 {
 	if (m_use_fbo)
@@ -229,6 +229,7 @@ void KX_BlenderCanvas::SetDrawBuffer()
 		glDrawBuffers(1, fboBuffers);
 	}
 }
+#endif
 
 bool KX_BlenderCanvas::BeginDraw()
 {

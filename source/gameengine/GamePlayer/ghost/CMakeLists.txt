@@ -98,4 +98,11 @@ if(WITH_SDL AND WITH_SDL_DYNLOAD)
 	add_definitions(-DWITH_SDL_DYNLOAD)
 endif()
 
+if(WITH_SHMDATA)
+	list(APPEND INC_SYS
+        ${SHMDATA_INCLUDE_DIRS}
+    )
+    add_definitions(-DWITH_SHMDATA)
+endif()
+
 blender_add_lib_nolist(ge_player_ghost "${SRC}" "${INC}" "${INC_SYS}")

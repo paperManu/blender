@@ -132,6 +132,9 @@ GPG_Application::GPG_Application(GHOST_ISystem* system)
 	  m_networkdevice(0),
 	  m_blendermat(0),
 	  m_blenderglslmat(0),
+		m_shmOutput(false),
+		m_shmWidth(0),
+		m_shmHeight(0),
 	  m_pyGlobalDictString(0),
 	  m_pyGlobalDictString_Length(0)
 {
@@ -321,8 +324,13 @@ bool GPG_Application::startWindow(
         int windowHeight,
         const bool stereoVisual,
         const int stereoMode,
-        const GHOST_TUns16 samples)
+        const GHOST_TUns16 samples,
+				bool shmOutput)
 {
+	m_shmOutput = shmOutput;
+	m_shmWidth = windowWidth;
+	m_shmHeight = windowHeight;
+
 	bool success;
 	// Create the main window
 	//STR_String title ("Blender Player - GHOST");
@@ -581,6 +589,14 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_canvas = new GPG_Canvas(window);
 		if (!m_canvas)
 			return false;
+
+#ifdef WITH_SHMDATA
+		if (m_shmOutput)
+		{
+			m_canvas->SetRenderingResolution(m_shmWidth, m_shmHeight);
+			m_canvas->SetSharedMemoryPath("/tmp/bgeplayer");
+		}
+#endif
 
 		if (gm->vsync == VSYNC_ADAPTIVE)
 			m_canvas->SetSwapInterval(-1);

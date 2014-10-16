@@ -40,12 +40,38 @@
 
 #include "GHOST_IWindow.h"
 
+#ifdef WITH_SHMDATA
+#include <shmdata/any-data-writer.h>
+#endif
+
 
 class GPG_Canvas : public GPC_Canvas
 {
 protected:
 	/** GHOST window. */
 	GHOST_IWindow* m_window;
+
+	bool m_use_fbo, m_fbo_ready;
+	GLuint m_fbo;
+	GLuint m_fbo_depth;
+	GLuint m_fbo_color;
+	RAS_Rect m_fbo_rect;
+	std::vector<GLenum> m_draw_buffer_stack;
+
+#ifdef WITH_SHMDATA
+	shmdata_any_writer_t *m_shmdata_writer;
+	char m_shmdata_filename[256];
+	int m_shmdata_writer_w, m_shmdata_writer_h;
+	bool m_copy_to_shmdata;
+
+	GLuint m_pbos[2];
+	int m_pbo_index;
+
+	void SetDrawBuffer();
+	void bufferToShmdata(unsigned int *buffer);
+#endif
+
+	void InitializeFbo();
 
 public:
 	GPG_Canvas(GHOST_IWindow* window);
@@ -58,6 +84,9 @@ public:
 	virtual void SetSwapInterval(int interval);
 	virtual bool GetSwapInterval(int& intervalOut);
 
+	virtual int GetWidth() const { return m_fbo_rect.GetWidth(); }
+	virtual int GetHeight() const { return m_fbo_rect.GetHeight(); }
+
 	virtual int GetMouseX(int x) { return x; }
 	virtual int GetMouseY(int y) { return y; }
 	virtual float GetMouseNormalizedX(int x);
@@ -66,9 +95,18 @@ public:
 	virtual void ResizeWindow(int width, int height);
 	virtual void SetFullScreen(bool enable);
 	virtual bool GetFullScreen();
+	virtual void SetRenderingResolution(int w, int h) {
+		m_use_fbo = true;
+		m_fbo_rect.SetRight(w + m_fbo_rect.GetLeft());
+		m_fbo_rect.SetTop(h + m_fbo_rect.GetBottom());
+	}
 
-	bool BeginDraw() { return true; }
+	bool BeginDraw();
 	void EndDraw() {};
+
+#ifdef WITH_SHMDATA
+	void SetSharedMemoryPath(const char* filename);
+#endif
 };
 
 #endif  /* __GPG_CANVAS_H__ */

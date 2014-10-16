@@ -73,12 +73,14 @@ public:
 	 * \section Methods inherited from abstract base class RAS_ICanvas.
 	 */
 	
+	virtual
 		int 
 	GetWidth(
 	) const {
 		return m_width;
 	}
 	
+	virtual
 		int 
 	GetHeight(
 	) const {

@@ -241,7 +241,6 @@ private:
 	 GLuint m_fbo_color;
 	 RAS_Rect m_fbo_rect;
    std::vector<GLenum> m_draw_buffer_stack;
-   int test;
 
 #ifdef WITH_SHMDATA
 	 /** PBO / Copy to shmdata related */

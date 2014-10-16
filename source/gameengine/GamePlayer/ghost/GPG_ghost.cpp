@@ -271,6 +271,9 @@ static void usage(const char* program, bool isBlenderPlayer)
 	printf("       show_profile                   0         Show profiling information\n");
 	printf("       blender_material               0         Enable material settings\n");
 	printf("       ignore_deprecation_warnings    1         Ignore deprecation warnings\n");
+#ifdef WITH_SHMDATA
+	printf("  -S: send the image output to shared memory, in /tmp/bgeplayer\n");
+#endif
 	printf("\n");
 	printf("  - : all arguments after this are ignored, allowing python to access them from sys.argv\n");
 	printf("\n");
@@ -419,6 +422,9 @@ int main(int argc, char** argv)
 	int validArguments=0;
 	bool samplesParFound = false;
 	GHOST_TUns16 aasamples = 0;
+#ifdef WITH_SHMDATA
+	bool shmOutput = false;
+#endif
 	
 #ifdef __linux__
 #ifdef __alpha__
@@ -783,6 +789,13 @@ int main(int argc, char** argv)
 				}
 				break;
 			}
+#ifdef WITH_SHMDATA
+			case 'S': //shared memory output
+			{
+				i++;
+				shmOutput = true;
+			}
+#endif
 			default:  //not recognized
 			{
 				printf("Unknown argument: %s\n", argv[i++]);
@@ -1033,7 +1046,7 @@ int main(int argc, char** argv)
 										app.startEmbeddedWindow(title, parentWindow, stereoWindow, stereomode, aasamples);
 									else
 										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
-										                stereoWindow, stereomode, aasamples);
+										                stereoWindow, stereomode, aasamples, shmOutput);
 
 									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 										GPU_set_mipmap(0);

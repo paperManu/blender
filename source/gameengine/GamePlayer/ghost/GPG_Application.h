@@ -64,7 +64,8 @@ public:
 	bool startWindow(STR_String& title,
 	                 int windowLeft, int windowTop,
 	                 int windowWidth, int windowHeight,
-	                 const bool stereoVisual, const int stereoMode, const GHOST_TUns16 samples=0);
+	                 const bool stereoVisual, const int stereoMode, const GHOST_TUns16 samples=0,
+									 bool shmOutput=false);
 	bool startFullScreen(int width, int height,
 	                     int bpp, int frequency,
 	                     const bool stereoVisual, const int stereoMode,
@@ -159,6 +160,9 @@ protected:
 
 	bool m_blendermat;
 	bool m_blenderglslmat;
+
+	bool m_shmOutput;
+	int m_shmWidth, m_shmHeight;
 	
 	/*
 	 * GameLogic.globalDict as a string so that loading new blend files can use the same dict.
