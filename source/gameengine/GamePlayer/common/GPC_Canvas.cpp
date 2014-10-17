@@ -109,7 +109,7 @@ void GPC_Canvas::SetViewPort(int x1, int y1, int x2, int y2)
 		 * but where... definitely need to clean up this
 		 * whole canvas/rendertools mess.
 		 */
-	glEnable(GL_SCISSOR_TEST);
+	//glEnable(GL_SCISSOR_TEST); // Activating this gives wierd bug in dome view
 	
 	m_viewport[0] = x1;
 	m_viewport[1] = y1;
