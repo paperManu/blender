@@ -58,6 +58,7 @@ endif()
 
 # this starts out unset
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/build_files/cmake/Modules")
+include(FindPkgConfig)
 
 # avoid having empty buildtype
 set(CMAKE_BUILD_TYPE_INIT "Release")
@@ -367,6 +368,9 @@ mark_as_advanced(WITH_MEM_JEMALLOC)
 # currently only used for BLI_mempool
 option(WITH_MEM_VALGRIND "Enable extended valgrind support for better reporting" OFF)
 mark_as_advanced(WITH_MEM_VALGRIND)
+
+# BGE specific
+option(WITH_SHMDATA         "Enable Shmdata output (http://code.sat.qc.ca/libshmdata)" OFF)
 
 # Debug
 option(WITH_CXX_GUARDEDALLOC "Enable GuardedAlloc for C++ memory allocation tracking (only enable for development)" OFF)
@@ -985,6 +989,15 @@ if(UNIX AND NOT APPLE)
 			message(STATUS "OpenColorIO not found")
 		endif()
 	endif()
+
+    # BGE related
+    if(WITH_SHMDATA)
+        pkg_check_modules(SHMDATA shmdata-any-0.8)
+        if(NOT SHMDATA_FOUND)
+            set(WITH_SHMDATA OFF)
+            message(STATUS "libshmdata not found")
+        endif()
+    endif()
 
 	# XXX Maybe most of this section should go into an llvm module?
 	if(WITH_LLVM)
@@ -2789,6 +2802,9 @@ if(FIRST_RUN)
 	if(WIN32)
 		info_cfg_option(WITH_GL_ANGLE)
 	endif()
+
+    info_cfg_text("Blender Game Engine:")
+    info_cfg_option(WITH_SHMDATA)
 
 	info_cfg_text("Other:")
 	info_cfg_option(WITH_OPENNL)

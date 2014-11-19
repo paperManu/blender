@@ -43,6 +43,10 @@
 #include "MEM_guardedalloc.h"
 #endif
 
+#ifdef WITH_SHMDATA
+#include <shmdata/any-data-writer.h>
+#endif
+
 struct ARegion;
 struct wmWindow;
 struct wmWindowManager;
@@ -193,6 +197,13 @@ public:
 	MakeScreenShot(
 		const char* filename
 	);
+
+#ifdef WITH_SHMDATA
+        void
+    EnableShmdata(
+        const char* filename
+    );
+#endif
 	
 		bool 
 	BeginDraw(
@@ -211,6 +222,13 @@ private:
 	int			m_area_left;
 	int			m_area_top;
 
+#ifdef WITH_SHMDATA
+    shmdata_any_writer_t *m_shmdata_writer;
+    char m_shmdata_filename[256];
+    int m_shmdata_writer_w, m_shmdata_writer_h;
+
+    void FrontBufferToShmdata();
+#endif
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvas")

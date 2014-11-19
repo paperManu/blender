@@ -84,4 +84,8 @@ set(SRC
 
 add_definitions(${GL_DEFINITIONS})
 
+if(WITH_SHMDATA)
+    add_definitions(-DWITH_SHMDATA)
+endif()
+
 blender_add_lib(ge_rasterizer "${SRC}" "${INC}" "${INC_SYS}")

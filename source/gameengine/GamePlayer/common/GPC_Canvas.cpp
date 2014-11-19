@@ -169,7 +169,7 @@ MakeScreenShot(
 		std::cout << "Cannot allocate pixels array" << std::endl;
 		return;
 	}
-
+u
 	glReadPixels(0, 0, GetWidth(), GetHeight(), GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
 	// initialize image file format data

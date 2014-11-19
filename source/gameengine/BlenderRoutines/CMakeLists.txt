@@ -73,5 +73,12 @@ if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
 
+if(WITH_SHMDATA)
+	list(APPEND INC_SYS
+        ${SHMDATA_INCLUDE_DIRS}
+    )
+    add_definitions(-DWITH_SHMDATA)
+endif()
+
 
 blender_add_lib(ge_blen_routines "${SRC}" "${INC}" "${INC_SYS}")

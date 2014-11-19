@@ -48,6 +48,8 @@
 #include "BLI_string.h"
 
 #include <assert.h>
+#include <cstring>
+
 
 extern "C" {
 #include "IMB_imbuf.h"
@@ -69,10 +71,19 @@ m_frame_rect(rect)
 	m_area_top = ar->winrct.ymax;
 
 	glGetIntegerv(GL_VIEWPORT, (GLint *)m_viewport);
+
+#ifdef WITH_SHMDATA
+    m_shmdata_writer = NULL;
+    sprintf(m_shmdata_filename, "");
+#endif
 }
 
 KX_BlenderCanvas::~KX_BlenderCanvas()
 {
+#ifdef WITH_SHMDATA
+    if (m_shmdata_writer != NULL)
+        shmdata_any_writer_close(m_shmdata_writer);
+#endif
 }
 
 void KX_BlenderCanvas::Init()
@@ -84,6 +95,10 @@ void KX_BlenderCanvas::Init()
 void KX_BlenderCanvas::SwapBuffers()
 {
 	wm_window_swap_buffers(m_win);
+
+#ifdef WITH_SHMDATA
+    FrontBufferToShmdata();
+#endif
 }
 
 void KX_BlenderCanvas::SetSwapInterval(int interval)
@@ -322,6 +337,56 @@ static unsigned int *screenshot(ScrArea *curarea, int *dumpsx, int *dumpsy)
 	return dumprect;
 }
 
+#ifdef WITH_SHMDATA
+void KX_BlenderCanvas::FrontBufferToShmdata()
+{
+    if (strcmp(m_shmdata_filename, "") == 0)
+        return;
+
+	ScrArea area_dummy= {0};
+	unsigned int *dumprect;
+	int dumpsx, dumpsy;
+
+	area_dummy.totrct.xmin = m_frame_rect.GetLeft();
+	area_dummy.totrct.xmax = m_frame_rect.GetRight();
+	area_dummy.totrct.ymin = m_frame_rect.GetBottom();
+	area_dummy.totrct.ymax = m_frame_rect.GetTop();
+
+	dumprect = screenshot(&area_dummy, &dumpsx, &dumpsy);
+
+	if (dumprect) {
+        if (m_shmdata_writer != NULL && (dumpsx != m_shmdata_writer_w || dumpsy != m_shmdata_writer_h))
+        {
+            shmdata_any_writer_close(m_shmdata_writer);
+            m_shmdata_writer = NULL;
+        }
+
+        if (m_shmdata_writer == NULL)
+        {
+            m_shmdata_writer = shmdata_any_writer_init();
+
+            char buffer[256] = "";
+            sprintf(buffer, "video/x-raw-rgb,bpp=%i,endianness=4321,depth=%i,red_mask=-16777216,green_mask=16711680,blue_mask=65280,width=%i,height=%i,framerate=60/1", 32, 32, dumpsx, dumpsy);
+            shmdata_any_writer_set_data_type(m_shmdata_writer, buffer);
+
+            m_shmdata_writer_w = dumpsx;
+            m_shmdata_writer_h = dumpsy;
+
+            if (!shmdata_any_writer_set_path(m_shmdata_writer, m_shmdata_filename))
+            {
+                shmdata_any_writer_close(m_shmdata_writer);
+                m_shmdata_writer = NULL;
+            }
+            else
+                shmdata_any_writer_start(m_shmdata_writer);
+        }
+
+        if (m_shmdata_writer != NULL)
+            shmdata_any_writer_push_data(m_shmdata_writer, (void*)dumprect, dumpsx * dumpsy * 4 * sizeof(char), 0, NULL, NULL);
+	}
+}
+#endif
+
 void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 {
 	ScrArea area_dummy= {0};
@@ -363,3 +428,11 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 		MEM_freeN(dumprect);
 	}
 }
+
+#ifdef WITH_SHMDATA
+void KX_BlenderCanvas::EnableShmdata(const char *filename)
+{
+    if (filename != NULL)
+        sprintf(m_shmdata_filename, "%s", filename);
+}
+#endif

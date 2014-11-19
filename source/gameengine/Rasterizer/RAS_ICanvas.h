@@ -237,6 +237,14 @@ public:
 		const char* filename
 	)=0;
 
+#ifdef WITH_SHMDATA
+    virtual
+        void
+    EnableShmdata(
+        const char* filename
+    ) {}
+#endif
+
 	virtual
 		void 
 	ResizeWindow(
