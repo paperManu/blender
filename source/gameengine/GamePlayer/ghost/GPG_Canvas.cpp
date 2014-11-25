@@ -181,7 +181,7 @@ void GPG_Canvas::SwapBuffers()
 	  	glDrawBuffer(GL_BACK);
 	  	// Now that the rendering has been done to the FBO, we can show it in the window
 	  	glBlitFramebuffer(m_fbo_rect.GetLeft(), m_fbo_rect.GetBottom(), m_fbo_rect.GetRight(), m_fbo_rect.GetTop(),
-	 											m_displayarea.GetLeft(), m_displayarea.GetBottom(), m_displayarea.GetRight(), m_displayarea.GetTop(),
+	 											m_displayarea.GetLeft(), m_displayarea.GetBottom(), 640, 480,
 	 											GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
 #ifdef WITH_SHMDATA

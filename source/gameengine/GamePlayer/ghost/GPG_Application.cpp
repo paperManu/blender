@@ -331,6 +331,12 @@ bool GPG_Application::startWindow(
 	m_shmWidth = windowWidth;
 	m_shmHeight = windowHeight;
 
+    if (shmOutput)
+    {
+        windowWidth = 640;
+        windowHeight = 480;
+    }
+
 	bool success;
 	// Create the main window
 	//STR_String title ("Blender Player - GHOST");
