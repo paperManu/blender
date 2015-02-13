@@ -35,6 +35,8 @@
 
 #include "BLI_utildefines.h"
 
+#include "BKE_appdir.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_sound.h"
 #include "BKE_addon.h"
 
@@ -48,6 +50,7 @@
 #include "WM_types.h"
 
 #include "BLF_translation.h"
+#include "GPU_buffers.h"
 
 #ifdef WITH_CYCLES
 static EnumPropertyItem compute_device_type_items[] = {
@@ -139,6 +142,15 @@ static void rna_userdef_language_update(Main *UNUSED(bmain), Scene *UNUSED(scene
 	BLF_cache_clear();
 	BLF_lang_set(NULL);
 	UI_reinit_font();
+}
+
+static void rna_userdef_vbo_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+{
+	Object *ob;
+	
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
+		GPU_drawobject_free(ob->derivedFinal);
+	}
 }
 
 static void rna_userdef_show_manipulator_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -414,7 +426,7 @@ static void rna_userdef_pathcompare_remove(ReportList *reports, PointerRNA *path
 
 static void rna_userdef_temp_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
-	BLI_temp_dir_init(U.tempdir);
+	BKE_tempdir_init(U.tempdir);
 }
 
 static void rna_userdef_text_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
@@ -1031,10 +1043,10 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Icon Alpha", "Transparency of icons in the interface, to reduce contrast");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 	
-	prop = RNA_def_property(srna, "emboss", PROP_FLOAT, PROP_COLOR_GAMMA);
-	RNA_def_property_float_sdna(prop, NULL, "emboss");
+	prop = RNA_def_property(srna, "widget_emboss", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "widget_emboss");
 	RNA_def_property_array(prop, 4);
-	RNA_def_property_ui_text(prop, "Emboss", "");
+	RNA_def_property_ui_text(prop, "Widget Emboss", "Color of the 1px shadow line underlying widgets");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	/* axis */
@@ -3951,7 +3963,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "VBOs",
 	                         "Use Vertex Buffer Objects (or Vertex Arrays, if unsupported) for viewport rendering");
 	/* this isn't essential but nice to check if VBO draws any differently */
-	RNA_def_property_update(prop, NC_WINDOW, NULL);
+	RNA_def_property_update(prop, NC_WINDOW, "rna_userdef_vbo_update");
 
 	prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "anisotropic_filter");

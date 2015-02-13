@@ -179,6 +179,15 @@ if(UNIX AND NOT APPLE)
 	set(_init_GAMEENGINE                     OFF)
 endif()
 
+
+#-----------------------------------------------------------------------------
+# Options
+
+# First platform spesific non-cached vars
+if(UNIX AND NOT APPLE)
+	set(WITH_X11 ON)
+endif()
+
 # Blender internal features
 option(WITH_BLENDER "Build blender (disable to build only the blender player)" ON)
 mark_as_advanced(WITH_BLENDER)
@@ -233,10 +242,6 @@ option(WITH_AUDASPACE    "Build with blenders audio library (only disable if you
 mark_as_advanced(WITH_AUDASPACE)
 
 option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ON)
-
-if(UNIX AND NOT APPLE)
-	set(WITH_X11 ON)
-endif()
 
 if(WITH_X11)
 	option(WITH_X11_XINPUT    "Enable X11 Xinput (tablet support and unicode input)"  ON)
@@ -314,6 +319,9 @@ mark_as_advanced(WITH_LIBMV_SCHUR_SPECIALIZATIONS)
 option(WITH_FREESTYLE     "Enable Freestyle (advanced edges rendering)" ON)
 
 # Misc
+if(WIN32)
+	option(WITH_INPUT_IME "Enable Input Method Editor (IME) for complex Asian character input" ON)
+endif()
 option(WITH_INPUT_NDOF "Enable NDOF input devices (SpaceNavigator and friends)" ${_init_INPUT_NDOF})
 option(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" ON)
 option(WITH_OPENNL        "Enable use of Open Numerical Library" ON)
@@ -347,7 +355,7 @@ option(WITH_CYCLES_CUDA_BINARIES	"Build cycles CUDA binaries" OFF)
 set(CYCLES_CUDA_BINARIES_ARCH sm_20 sm_21 sm_30 sm_35 sm_50 CACHE STRING "CUDA architectures to build binaries for")
 mark_as_advanced(CYCLES_CUDA_BINARIES_ARCH)
 unset(PLATFORM_DEFAULT)
-option(WITH_CYCLES_LOGGING	"Build cycles with logging support" OFF)
+option(WITH_CYCLES_LOGGING	"Build cycles with logging support" ON)
 option(WITH_CYCLES_DEBUG	"Build cycles with extra debug capabilities" OFF)
 mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG)
@@ -1086,11 +1094,9 @@ if(UNIX AND NOT APPLE)
 	
 		if(OSL_INCLUDES AND OSL_LIBRARIES AND OSL_COMPILER)
 			set(OSL_FOUND TRUE)
-			message(STATUS "OSL includes = ${OSL_INCLUDES}")
-			message(STATUS "OSL library = ${OSL_LIBRARIES}")
-			message(STATUS "OSL compiler = ${OSL_COMPILER}")
 		else()
 			message(STATUS "OSL not found")
+			set(WITH_CYCLES_OSL OFF)
 		endif()
 	endif()
 
@@ -1099,6 +1105,8 @@ if(UNIX AND NOT APPLE)
 
 	find_package(Threads REQUIRED)
 	list(APPEND PLATFORM_LINKLIBS ${CMAKE_THREAD_LIBS_INIT})
+	# used by other platforms
+	set(PTHREADS_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
 
 	if(CMAKE_DL_LIBS)
 		list(APPEND PLATFORM_LINKLIBS ${CMAKE_DL_LIBS})
@@ -1160,6 +1168,10 @@ elseif(WIN32)
 		set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
 
 		list(APPEND PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
+
+		if(WITH_INPUT_IME)
+			list(APPEND PLATFORM_LINKLIBS imm32)
+		endif()
 
 		add_definitions(
 			-D_CRT_NONSTDC_NO_DEPRECATE
@@ -1516,6 +1528,11 @@ elseif(WIN32)
 		endif()
 		
 		list(APPEND PLATFORM_LINKLIBS -lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi)
+
+		if(WITH_INPUT_IME)
+			list(APPEND PLATFORM_LINKLIBS -limm32)
+		endif()
+
 		set(PLATFORM_CFLAGS "-pipe -funsigned-char -fno-strict-aliasing")
 
 		if(WITH_MINGW64)
@@ -1765,6 +1782,7 @@ elseif(WIN32)
 			set(OSL_FOUND TRUE)
 		else()
 			message(STATUS "OSL not found")
+			set(WITH_CYCLES_OSL OFF)
 		endif()
 	endif()
 
@@ -2058,6 +2076,7 @@ elseif(APPLE)
 			set(OSL_FOUND TRUE)
 		else()
 			message(STATUS "OSL not found")
+			set(WITH_CYCLES_OSL OFF)
 		endif()
 	endif()
 	

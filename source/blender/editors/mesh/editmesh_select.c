@@ -38,7 +38,6 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_array.h"
-#include "BLI_smallhash.h"
 
 #include "BKE_context.h"
 #include "BKE_report.h"
@@ -61,8 +60,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-
-#include "GPU_extensions.h"
 
 #include "UI_resources.h"
 
@@ -384,8 +381,6 @@ static void findnearestvert__doClosest(void *userData, BMVert *eve, const float 
 		}
 	}
 }
-
-
 
 
 static bool findnearestvert__backbufIndextest(void *handle, unsigned int index)
@@ -994,6 +989,7 @@ static int edbm_select_similar_region_exec(bContext *C, wmOperator *op)
 	}
 
 	MEM_freeN(groups_array);
+	MEM_freeN(group_index);
 
 	if (changed) {
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit);
