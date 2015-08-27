@@ -93,6 +93,8 @@ public:
 		int &intervalOut
 	);
 
+	void GetDisplayDimensions(int &width, int &height);
+
 		void 
 	ResizeWindow(
 		int width,

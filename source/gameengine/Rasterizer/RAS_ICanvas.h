@@ -254,6 +254,8 @@ public:
   ) {}
 #endif
 
+	virtual void GetDisplayDimensions(int &width, int &height) = 0;
+
 	virtual
 		void 
 	ResizeWindow(
