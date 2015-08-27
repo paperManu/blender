@@ -1057,8 +1057,13 @@ int main(int argc, char** argv)
 									if (parentWindow != 0)
 										app.startEmbeddedWindow(title, parentWindow, stereoWindow, stereomode, aasamples);
 									else
+#ifdef WITH_SHMDATA
 										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
 										                stereoWindow, stereomode, aasamples, shmOutput);
+#else
+										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
+										                stereoWindow, stereomode, aasamples);
+#endif
 
 									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 										GPU_set_mipmap(0);

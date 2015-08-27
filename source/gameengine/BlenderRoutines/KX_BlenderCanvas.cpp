@@ -72,6 +72,7 @@ m_fbo_ready(false)
 	// area boundaries needed for mouse coordinates in Letterbox framing mode
 	m_area_left = ar->winrct.xmin;
 	m_area_top = ar->winrct.ymax;
+	m_frame = 1;
 
 	glGetIntegerv(GL_VIEWPORT, (GLint *)m_viewport);
 
@@ -92,9 +93,8 @@ KX_BlenderCanvas::~KX_BlenderCanvas()
 #ifdef WITH_SHMDATA
 		  if (m_shmdata_writer != NULL)
 				shmdata_any_writer_close(m_shmdata_writer);
-#endif
-
 		  glDeleteBuffers(2, m_pbos);
+#endif
 	 }
 }
 
@@ -244,7 +244,9 @@ bool KX_BlenderCanvas::BeginDraw()
 	  // window always, because it may change in window event handling
 	  wm_window_make_drawable(m_wm, m_win);
 	
+#ifdef WITH_SHMDATA
 		SetDrawBuffer();
+#endif
 	
 	  return true;
 	}
@@ -271,7 +273,9 @@ void KX_BlenderCanvas::BeginFrame()
 void KX_BlenderCanvas::EndFrame()
 {
 	glDisable(GL_FOG);
+#ifdef WITH_SHMDATA
 	SetDrawBuffer();
+#endif
 }
 
 void KX_BlenderCanvas::ClearColor(float r,float g,float b,float a)
@@ -537,7 +541,9 @@ void KX_BlenderCanvas::MakeScreenShot(const char *filename)
 		char path[FILE_MAX];
 		BLI_strncpy(path, filename, sizeof(path));
 		BLI_path_abs(path, G.main->name);
-		BKE_add_image_extension_from_type(path, im_format.imtype);
+		BLI_path_frame(path, m_frame, 0);
+		m_frame++;
+		BKE_image_path_ensure_ext_from_imtype(path, im_format.imtype);
 
 		/* create and save imbuf */
 		ImBuf *ibuf = IMB_allocImBuf(dumpsx, dumpsy, 24, 0);

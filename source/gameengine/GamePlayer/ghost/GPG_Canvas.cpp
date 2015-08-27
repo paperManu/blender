@@ -63,9 +63,8 @@ GPG_Canvas::~GPG_Canvas(void)
 #ifdef WITH_SHMDATA
 		if (m_shmdata_writer != NULL)
 			shmdata_any_writer_close(m_shmdata_writer);
-#endif
-
 		glDeleteBuffers(2, m_pbos);
+#endif
 	}
 }
 
@@ -271,7 +270,9 @@ bool GPG_Canvas::BeginDraw()
 			InitializeFbo();
 			m_fbo_ready = true;
 		}
+#ifdef WITH_SHMDATA
 		SetDrawBuffer();
+#endif
 		return true;
 	}
 	else

@@ -46,7 +46,9 @@ extern "C" {
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
 #include "DNA_freestyle_types.h"
+#include "DNA_gpu_types.h"
 
+struct CurveMapping;
 struct Object;
 struct Brush;
 struct World;
@@ -816,6 +818,7 @@ typedef struct TimeMarker {
 typedef struct Paint {
 	struct Brush *brush;
 	struct Palette *palette;
+	struct CurveMapping *cavity_curve; /* cavity curve */
 
 	/* WM Paint cursor */
 	void *paint_cursor;
@@ -852,7 +855,7 @@ typedef struct ImagePaintSettings {
 	struct Image *clone;       /* clone layer for image mode for projective texture painting */
 	struct Image *canvas;      /* canvas when the explicit system is used for painting */
 	float stencil_col[3];
-	float pad1;
+	float dither;              /* dither amount used when painting on byte images */
 } ImagePaintSettings;
 
 /* ------------------------------------------- */
@@ -885,6 +888,7 @@ typedef struct ParticleEditSettings {
 
 	struct Scene *scene;
 	struct Object *object;
+	struct Object *shape_object;
 } ParticleEditSettings;
 
 /* ------------------------------------------- */
@@ -988,25 +992,36 @@ typedef struct UnifiedPaintSettings {
 
 	/* record movement of mouse so that rake can start at an intuitive angle */
 	float last_rake[2];
+	float last_rake_angle;
+	
+	int last_stroke_valid;
+	float average_stroke_accum[3];
+	int average_stroke_counter;
+	
 
 	float brush_rotation;
+	float brush_rotation_sec;
 
 	/*********************************************************************************
 	 *  all data below are used to communicate with cursor drawing and tex sampling  *
 	 *********************************************************************************/
-	int draw_anchored;
 	int anchored_size;
-
-	char draw_inverted;
-	char pad3[7];
 
 	float overlap_factor; /* normalization factor due to accumulated value of curve along spacing.
 	                       * Calculated when brush spacing changes to dampen strength of stroke
 	                       * if space attenuation is used*/
+	char draw_inverted;
+	/* check is there an ongoing stroke right now */
+	char stroke_active;
+
+	char draw_anchored;
+	char do_linear_conversion;
+
 	float anchored_initial_mouse[2];
 
-	/* check is there an ongoing stroke right now */
-	int stroke_active;
+	/* radius of brush, premultiplied with pressure.
+	 * In case of anchored brushes contains the anchored radius */
+	float pixel_radius;
 
 	/* drawing pressure */
 	float size_pressure_value;
@@ -1018,13 +1033,7 @@ typedef struct UnifiedPaintSettings {
 	float mask_tex_mouse[2];
 
 	/* ColorSpace cache to avoid locking up during sampling */
-	int do_linear_conversion;
 	struct ColorSpace *colorspace;
-
-	/* radius of brush, premultiplied with pressure.
-	 * In case of anchored brushes contains the anchored radius */
-	float pixel_radius;
-	int pad4;
 } UnifiedPaintSettings;
 
 typedef enum {
@@ -1214,6 +1223,21 @@ typedef struct PhysicsSettings {
 	int flag, quick_cache_step, rt;
 } PhysicsSettings;
 
+/* ------------------------------------------- */
+/* Safe Area options used in Camera View & VSE
+ */
+typedef struct DisplaySafeAreas {
+	/* each value represents the (x,y) margins as a multiplier.
+	 * 'center' in this context is just the name for a different kind of safe-area */
+
+	float title[2];		/* Title Safe */
+	float action[2];	/* Image/Graphics Safe */
+
+	/* use for alternate aspect ratio */
+	float title_center[2];
+	float action_center[2];
+} DisplaySafeAreas;
+
 /* *************************************************************** */
 /* Scene ID-Block */
 
@@ -1249,6 +1273,7 @@ typedef struct Scene {
 	
 	struct ToolSettings *toolsettings;		/* default allocated now */
 	struct SceneStats *stats;				/* default allocated now */
+	struct DisplaySafeAreas safe_areas;
 
 	/* migrate or replace? depends on some internal things... */
 	/* no, is on the right place (ton) */
@@ -1606,7 +1631,8 @@ extern const char *RE_engine_id_CYCLES;
 #define PROP_LIN               4
 #define PROP_CONST             5
 #define PROP_RANDOM            6
-#define PROP_MODE_MAX          7
+#define PROP_INVSQUARE         7
+#define PROP_MODE_MAX          8
 
 /* toolsettings->proportional */
 #define PROP_EDIT_OFF			0
@@ -1673,7 +1699,8 @@ enum {
 typedef enum {
 	PAINT_SHOW_BRUSH = (1 << 0),
 	PAINT_FAST_NAVIGATE = (1 << 1),
-	PAINT_SHOW_BRUSH_ON_SURFACE = (1 << 2)
+	PAINT_SHOW_BRUSH_ON_SURFACE = (1 << 2),
+	PAINT_USE_CAVITY_MASK = (1 << 3)
 } PaintFlags;
 
 /* Paint.symmetry_flags
@@ -1734,12 +1761,13 @@ typedef enum ImagePaintMode {
 // #define IMAGEPAINT_DRAW_TOOL_DRAWING	4 // deprecated
 
 /* projection painting only */
-#define IMAGEPAINT_PROJECT_XRAY			16
-#define IMAGEPAINT_PROJECT_BACKFACE		32
-#define IMAGEPAINT_PROJECT_FLAT			64
-#define IMAGEPAINT_PROJECT_LAYER_CLONE	128
-#define IMAGEPAINT_PROJECT_LAYER_STENCIL	256
-#define IMAGEPAINT_PROJECT_LAYER_STENCIL_INV	512
+#define IMAGEPAINT_PROJECT_XRAY			(1 << 4)
+#define IMAGEPAINT_PROJECT_BACKFACE		(1 << 5)
+#define IMAGEPAINT_PROJECT_FLAT			(1 << 6)
+#define IMAGEPAINT_PROJECT_LAYER_CLONE	(1 << 7)
+#define IMAGEPAINT_PROJECT_LAYER_STENCIL	(1 << 8)
+#define IMAGEPAINT_PROJECT_LAYER_STENCIL_INV	(1 << 9)
+
 
 #define IMAGEPAINT_MISSING_UVS       (1 << 0)
 #define IMAGEPAINT_MISSING_MATERIAL  (1 << 1)

@@ -233,6 +233,7 @@ private:
 	RAS_Rect 	m_area_rect;
 	int			m_area_left;
 	int			m_area_top;
+	int			m_frame;
 
 	 /** Framebuffer object related stuff */
 	 bool m_use_fbo, m_fbo_ready;
