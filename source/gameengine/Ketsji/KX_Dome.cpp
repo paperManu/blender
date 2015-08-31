@@ -2044,6 +2044,13 @@ void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
 	cam->NodeUpdateGS(0.f);
 
 	scene->CalculateVisibleMeshes(m_rasterizer,cam);
+
+
+#ifdef WITH_PYTHON
+	// Run any pre-drawing python callbacks
+	scene->RunDrawingCallbacks(scene->GetPreDrawCB());
+#endif
+
 	scene->RenderBuckets(camtrans, m_rasterizer);
 }
 
